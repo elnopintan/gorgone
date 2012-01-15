@@ -5,14 +5,38 @@
  *      Author: ignacio
  */
 #include "PersistentVector.h"
+#include "RRBVector.h"
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <time.h>
+#include <boost/thread.hpp>
+
 
 struct block {
 	char data[10];
 };
 
+struct test {
+	PersistentVector<long> v;
+	int it;
+	void operator() () {
+		std::stringstream filename;
+		filename << "file" << it;
+		std::ofstream sal(filename.str().c_str());
+		sal << "Running" << std::endl;
+		while (v.size()!=0) {
+				sal << "pop " << it << "." << v.get(v.size()-1) << std::endl;
+			v=v.pop();
+
+		}
+		sal << "End" << std::endl;
+		sal.close();
+	}
+};
+
 int main() {
+	RRBVector<long> a;
 	{
 		clock_t start, finish;
 		start = clock();
@@ -134,7 +158,23 @@ int main() {
 		}
 		finish = clock();
 		std::cout << "TransientVectorSptr with block >> " << (finish-start) << std::endl;
+
 	}
+	{
+		test f;
+		for (int i=0; i< 10000; i++)
+			f.v=f.v.add(i);
+		std::vector<boost::thread *> threads;
+		for (int i=0; i< 20; i++)
+		{
+			f.it=i;
+			threads.push_back(new boost::thread(f));
+		}
+		for (int i=0; i<20;i++)
+			threads[i]->join();
+
+	}
+
 
 
 }

@@ -152,10 +152,6 @@ PersistentVector<T> add(const T &val){
 	};
 
 	Node_ptr pushTail(unsigned int level, Node_ptr &parent, Node_ptr &tailnode){
-		//if parent is leaf, insert node,
-		// else does it map to an existing child? -> nodeToInsert = pushNode one more level
-		// else alloc new path
-		//return  nodeToInsert placed in copy of parent
 		unsigned int subidx = ((_cnt - 1) >> level) & 0x01f;
 		Branch *parent_branch= dynamic_cast<Branch *> (parent.get());
 		Node_vector array = parent_branch->getArray();

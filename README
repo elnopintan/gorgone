@@ -1,6 +1,8 @@
 Gorgone
 Turning mutability into stone.
 
+Dependencies:
+Boost 1.48
 This library includes a set of classes that implement persistent collections.
 A persistent collection are immutable data that provide modified copies when manipulated.
 

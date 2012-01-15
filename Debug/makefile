@@ -43,7 +43,7 @@ all: gorgone
 gorgone: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	g++  -o"gorgone" $(OBJS) $(USER_OBJS) $(LIBS)
+	g++ -L/home/ignacio/boost_1_48_0/stage/lib -o"gorgone" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
