@@ -10,99 +10,96 @@
 #include <iostream>
 #include <boost/shared_ptr.hpp>
 #include <vector>
+#include <string.h>
 
 template <typename T>
 class RRBVector {
-	class Node {
-	public:
-		virtual bool isFull(unsigned int parentLevel)=0;
-		Node add(const T &data);
+	struct Node {
+		virtual bool isFull()=0;
+		virtual unsigned int size()=0;
+		virtual unsigned int level()=0;
+		virtual boost::shared_ptr<Node> add(const T &value)=0;
+
 	};
-	struct Leaf : public Node {
-		T _value;
-		Leaf(const T & value): _value(value) {};
-		bool isFull(unsigned int parentLevel) {return true;}
-	};
-	struct Branch : public Node {
-		typedef boost::shared_ptr<Node> Branch_ptr ;
-		std::vector<Branch_ptr> _data;
-		std::vector<unsigned int> _index;
-		unsigned int _level;
-		const Branch & add(const T &value)
+	template <int N>
+	struct LeafBranch: public Node {
+		T _data[N];
+		unsigned int _indexes [N];
+		LeafBranch() {};
+
+		LeafBranch(const T &data[], unsigned int n)
 		{
-			if (_level==0)
+			memcpy(branches,_branches,n*sizeof(T));
+		};
+		bool isFull(){
+			return N==32;
+		};
+		unsigned int size() {return N;}
+		unsigned int level() {return 0;}
+
+
+		boost::shared_ptr<Node> add(const T &value) {
+			if (N<32)
 			{
-				if (_data.size()<32)
-				{
-					Branch result(*this);
-					result._data.push_back(Branch_ptr(new Leaf(value)));
-					result._data.push_back(result._data.size());
-					return result;
-				}
-				else
-				{
-					Branch result;
-					result._level=5;
-					result._data.push_back(Branch_ptr(new Branch(*this)));
-				}
+				boost::shared_ptr<Node> result (new LeafBranch<N+1>(_data,_indexes,N));
+				LeafBranch<N+1> *newNode= static_cast<LeafBranch<N+1> *> (result.get());
+				newNode->_data[N]=value;
+				return result;
 			}
 			else
-				if (!_data[_data.size()]->isFull(_level))
+			{
+				boost::shared_ptr<Node> result (new MidBranch<1> (newNode));
+				MidBranch<1> newNode=static_cast<MidBranch<1> *> (result.get());
+				newNode->_data[0]=boost::shared_ptr<Node> (new LeafBranch<N>(*this));
+				newNode->_indexes[0]=32;
+				newNode->_level=5;
+				return result;
+
+			}
+		};
+
+	};
+	struct MidBranch<N> : public Node
+	{
+		unsigned int _level;
+		unsigned int _indexes[N];
+		boost::shared_ptr<Node> _data[N];
+		bool isFull(){
+			return N==32 && _data[31].isFull();
+		};
+		MidBranch() {};
+		MidBranch(const boost::shared_ptr<Node> &data[],const unsigned int &indexes[],unsigned int n) {
+			for (int i=0;i<n;i++) {
+				_data[i]=data[i];
+				_indexes[i]=indexes[i];
+			}
+		}
+		unsigned int size() {return N;};
+		unsigned int level() {return _level;};
+		const boost::shared_ptr<Node> add(const T &value) {
+			if (N<32)
+			{
+				if (_data[N].isFull() && (_data[N].level()+5)==_level)
 				{
-					Branch result(*this);
-					Branch * lastBranch=(Branch *)result._data[_data.size()]->get();
-					result._data[_data.size()]=(Branch_ptr(new Branch(lastBranch->add(value))));
-					result._index[_data.size()]++;
+					boost::shared_ptr<Node> result(new MidBranch<N+1>(_data,_indexes,N));
+					MidBranch<N+1> *newBranch=static_cast<MidBranch<N+1> >(result.get());
+					LeafBranch<1> nextNode;
+					nextNode._data[1]=value;
+					newBranch->_data[N]=boost::shared_ptr<Node> (new LeafBranch<1>(nextNode));
+					newBranch->_indexes[N]=_indexes[N-1]+1;
+					return result;
 				}
 				else
 				{
-					Branch result;
-					if (_data[_data.size()]< 32)
-						result=Branch(*this);
-					else
-						{
-						result._level=_level+5;
-						result._data.push_back(Branch_ptr(new Branch(*this)));
-						result._index.push_back(_index[_data.size()-1]);
-						}
-					result._data.push_back(Branch_ptr(new Branch(Branch().add(value))));
-					result._index.push_back(result._index[result._data.size()-1]+1);
+					boost::shared_ptr<Node> result(new MidBranch<N>(_data,_indexes,N-1));
+					MidBranch<N> *newBranch=static_cast<MidBranch<N> >(result.get());
+					newBranch->_data[N-1]=_data[N-1].add(value);
+					newBranch->_indexes[N-1]=_indexes[N-1]+1;
 					return result;
 				}
 
-		}
-		bool isFull(unsigned int parentLevel) {
-			if (_data.size()<32)
-				return false;
-			if (_data[31]->isFull(_level))
-			{
-				if (_level== parentLevel-5)
-					return true;
-				else
-					return false;
 			}
-			return false;
-		}
+		};
 	};
-
-	Branch _root;
-	public:
-	RRBVector() {
-	};
-
-	RRBVector(const Branch &root):
-		_root(root)
-	{};
-	RRBVector(const RRBVector<T> &v):
-		_root(v._root)
-	{
-
-	};
-
-	RRBVector<T> add(const T &data) {
-		return RRBVector<T>(_root.add(data));
-	}
-
-
 };
 #endif /* RRBVECTOR_H_ */
