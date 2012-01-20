@@ -21,36 +21,48 @@ class RRBVector {
 		virtual boost::shared_ptr<Node> add(const T &value)=0;
 
 	};
-	template <int N>
-	struct LeafBranch: public Node {
-		T _data[N];
-		unsigned int _indexes [N];
-		LeafBranch() {};
 
-		LeafBranch(const T &data[], unsigned int n)
+	struct LeafBranch: public Node {
+		T *_data;
+		unsigned int _size;
+		LeafBranch(unsigned int size):_size(size) {
+			_data=new T[size];
+		};
+
+		LeafBranch(const T &data[], unsigned int n,unsigned int size):_size(size)
 		{
+			_data=new T[size];
 			memcpy(branches,_branches,n*sizeof(T));
 		};
+		LeafBranch(const LeafBranch &other) :_size(size){
+			_data=new T[other._size];
+			memcpy(branches,_branches,_size*sizeof(T));
+
+		}
+		virtual ~LeafBranch() {
+			delete []_data;
+		}
+
 		bool isFull(){
-			return N==32;
+			return _size==32;
 		};
-		unsigned int size() {return N;}
+		unsigned int size() {return _size;}
 		unsigned int level() {return 0;}
 
 
 		boost::shared_ptr<Node> add(const T &value) {
-			if (N<32)
+			if (_size<32)
 			{
-				boost::shared_ptr<Node> result (new LeafBranch<N+1>(_data,_indexes,N));
-				LeafBranch<N+1> *newNode= static_cast<LeafBranch<N+1> *> (result.get());
-				newNode->_data[N]=value;
+				boost::shared_ptr<Node> result (new LeafBranch(_data,_indexes,_size,_size+1));
+				LeafBranch *newNode= static_cast<LeafBranch *> (result.get());
+				newNode->_data[_size]=value;
 				return result;
 			}
 			else
 			{
-				boost::shared_ptr<Node> result (new MidBranch<1> (newNode));
-				MidBranch<1> newNode=static_cast<MidBranch<1> *> (result.get());
-				newNode->_data[0]=boost::shared_ptr<Node> (new LeafBranch<N>(*this));
+				boost::shared_ptr<Node> result (new MidBranch (1));
+				MidBranch newNode=static_cast<MidBranch *> (result.get());
+				newNode->_data[0]=boost::shared_ptr<Node> (new LeafBranch(*this));
 				newNode->_indexes[0]=32;
 				newNode->_level=5;
 				return result;
@@ -59,42 +71,66 @@ class RRBVector {
 		};
 
 	};
-	struct MidBranch<N> : public Node
+
+	struct MidBranch : public Node
 	{
 		unsigned int _level;
-		unsigned int _indexes[N];
-		boost::shared_ptr<Node> _data[N];
+		unsigned int _size;
+		unsigned int *_indexes[];
+		boost::shared_ptr<Node> *_data;
 		bool isFull(){
-			return N==32 && _data[31].isFull();
+			return _size==32 && _data[31].isFull();
 		};
-		MidBranch() {};
-		MidBranch(const boost::shared_ptr<Node> &data[],const unsigned int &indexes[],unsigned int n) {
+		MidBranch(unsigned int size, unsigned int level):_level(level), _size(size) {
+			_indexes= new unsigned int[_size];
+			_data= new boost::shared_ptr<Node>[_size];
+		};
+
+		MidBranch(const boost::shared_ptr<Node> &data[],const unsigned int &indexes[],unsigned int n, unsigned int size, unsigned int level):
+		_size(size), _level(level){
+			_indexes= new unsigned int[_size];
+			_data= new boost::shared_ptr<Node>[_size];
 			for (int i=0;i<n;i++) {
 				_data[i]=data[i];
 				_indexes[i]=indexes[i];
 			}
 		}
-		unsigned int size() {return N;};
+		MidBranch(const MidBranch &other):
+		_size(other._size), _level(other._level){
+
+			_indexes= new unsigned int[_size];
+			_data= new boost::shared_ptr<Node>[_size];
+			for (int i=0;i<other._size;i++) {
+				_data[i]=data[i];
+				_indexes[i]=indexes[i];
+			}
+		}
+		virtual ~MidBranch() {
+			delete []_data;
+			delete []_indexes;
+		}
+
+		unsigned int size() {return _size;};
 		unsigned int level() {return _level;};
 		const boost::shared_ptr<Node> add(const T &value) {
-			if (N<32)
+			if (_size<32)
 			{
-				if (_data[N].isFull() && (_data[N].level()+5)==_level)
+				if (_data[_size-1].isFull() && (_data[_size-1].level()+5)==_level)
 				{
-					boost::shared_ptr<Node> result(new MidBranch<N+1>(_data,_indexes,N));
-					MidBranch<N+1> *newBranch=static_cast<MidBranch<N+1> >(result.get());
-					LeafBranch<1> nextNode;
+					boost::shared_ptr<Node> result(new MidBranch(_data,_indexes,_size,_size+1,_level));
+					MidBranch *newBranch=static_cast<MidBranch >(result.get());
+					LeafBranch nextNode(1);
 					nextNode._data[1]=value;
-					newBranch->_data[N]=boost::shared_ptr<Node> (new LeafBranch<1>(nextNode));
-					newBranch->_indexes[N]=_indexes[N-1]+1;
+					newBranch->_data[_size]=boost::shared_ptr<Node> (new LeafBranch(nextNode));
+					newBranch->_indexes[_size]=_indexes[_size-1]+1;
 					return result;
 				}
 				else
 				{
-					boost::shared_ptr<Node> result(new MidBranch<N>(_data,_indexes,N-1));
-					MidBranch<N> *newBranch=static_cast<MidBranch<N> >(result.get());
-					newBranch->_data[N-1]=_data[N-1].add(value);
-					newBranch->_indexes[N-1]=_indexes[N-1]+1;
+					boost::shared_ptr<Node> result(new MidBranch(_data,_indexes,_size-1,_size,_level));
+					MidBranch *newBranch=static_cast<MidBranch>(result.get());
+					newBranch->_data[_size-1]=_data[_size-1].add(value);
+					newBranch->_indexes[_size-1]=_indexes[_size-1]+1;
 					return result;
 				}
 
