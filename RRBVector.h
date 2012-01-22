@@ -14,11 +14,13 @@
 
 template <typename T>
 class RRBVector {
+	struct Node;
+	typedef boost::shared_ptr<Node> node_ptr;
 	struct Node {
 		virtual bool isFull()=0;
 		virtual unsigned int size()=0;
 		virtual unsigned int level()=0;
-		virtual boost::shared_ptr<Node> add(const T &value)=0;
+		virtual node_ptr add(const T &value)=0;
 
 	};
 
@@ -29,14 +31,14 @@ class RRBVector {
 			_data=new T[size];
 		};
 
-		LeafBranch(const T &data[], unsigned int n,unsigned int size):_size(size)
+		LeafBranch(const T data[], unsigned int n,unsigned int size):_size(size)
 		{
 			_data=new T[size];
-			memcpy(branches,_branches,n*sizeof(T));
+			memcpy(data,_data,n*sizeof(T));
 		};
 		LeafBranch(const LeafBranch &other) :_size(size){
 			_data=new T[other._size];
-			memcpy(branches,_branches,_size*sizeof(T));
+			memcpy(other._data,_data,_size*sizeof(T));
 
 		}
 		virtual ~LeafBranch() {
@@ -53,16 +55,16 @@ class RRBVector {
 		boost::shared_ptr<Node> add(const T &value) {
 			if (_size<32)
 			{
-				boost::shared_ptr<Node> result (new LeafBranch(_data,_indexes,_size,_size+1));
+				node_ptr result (new LeafBranch(_data, _size,_size+1));
 				LeafBranch *newNode= static_cast<LeafBranch *> (result.get());
 				newNode->_data[_size]=value;
 				return result;
 			}
 			else
 			{
-				boost::shared_ptr<Node> result (new MidBranch (1));
+				node_ptr result (new MidBranch (1));
 				MidBranch newNode=static_cast<MidBranch *> (result.get());
-				newNode->_data[0]=boost::shared_ptr<Node> (new LeafBranch(*this));
+				newNode->_data[0]=node_ptr (new LeafBranch(*this));
 				newNode->_indexes[0]=32;
 				newNode->_level=5;
 				return result;
@@ -86,7 +88,7 @@ class RRBVector {
 			_data= new boost::shared_ptr<Node>[_size];
 		};
 
-		MidBranch(const boost::shared_ptr<Node> &data[],const unsigned int &indexes[],unsigned int n, unsigned int size, unsigned int level):
+		MidBranch(const boost::shared_ptr<Node> data[],const unsigned int indexes[],unsigned int n, unsigned int size, unsigned int level):
 		_size(size), _level(level){
 			_indexes= new unsigned int[_size];
 			_data= new boost::shared_ptr<Node>[_size];
@@ -101,8 +103,8 @@ class RRBVector {
 			_indexes= new unsigned int[_size];
 			_data= new boost::shared_ptr<Node>[_size];
 			for (int i=0;i<other._size;i++) {
-				_data[i]=data[i];
-				_indexes[i]=indexes[i];
+				_data[i]=other._data[i];
+				_indexes[i]=other._indexes[i];
 			}
 		}
 		virtual ~MidBranch() {
@@ -112,29 +114,41 @@ class RRBVector {
 
 		unsigned int size() {return _size;};
 		unsigned int level() {return _level;};
-		const boost::shared_ptr<Node> add(const T &value) {
-			if (_size<32)
-			{
-				if (_data[_size-1].isFull() && (_data[_size-1].level()+5)==_level)
+		bool isSubnodeFull(Node *node) {
+			return !((node->level()+5==_level)||(node->isFull()));
+		}
+		const node_ptr add(const T &value) {
+			if (isSubnodeFull(_data[_size-1].get()))
 				{
-					boost::shared_ptr<Node> result(new MidBranch(_data,_indexes,_size,_size+1,_level));
-					MidBranch *newBranch=static_cast<MidBranch >(result.get());
-					LeafBranch nextNode(1);
-					nextNode._data[1]=value;
-					newBranch->_data[_size]=boost::shared_ptr<Node> (new LeafBranch(nextNode));
-					newBranch->_indexes[_size]=_indexes[_size-1]+1;
-					return result;
-				}
+				if (_size<32)
+					{
+						node_ptr result(new MidBranch(_data,_indexes,_size,_size+1,_level));
+						MidBranch *newBranch=static_cast<MidBranch >(result.get());
+						LeafBranch nextNode(1);
+						nextNode._data[1]=value;
+						newBranch->_data[_size]=node_ptr (new LeafBranch(nextNode));
+						newBranch->_indexes[_size]=_indexes[_size-1]+1;
+						return result;
+					}
 				else
+					{
+					//shift level
+					node_ptr result(new MidBranch(1));
+					MidBranch *newBranch=static_cast<MidBranch >(result.get());
+					newBranch->_level=_level+5;
+					newBranch->_data[0]=node_ptr(this);
+					newBranch->_indexes[0]=_indexes[31];
+					return newBranch;
+					}
+				}
+			else
 				{
-					boost::shared_ptr<Node> result(new MidBranch(_data,_indexes,_size-1,_size,_level));
+					node_ptr result(new MidBranch(_data,_indexes,_size-1,_size,_level));
 					MidBranch *newBranch=static_cast<MidBranch>(result.get());
-					newBranch->_data[_size-1]=_data[_size-1].add(value);
+					newBranch->_data[_size-1]=_data[_size-1]->add(value);
 					newBranch->_indexes[_size-1]=_indexes[_size-1]+1;
 					return result;
 				}
-
-			}
 		};
 	};
 };
