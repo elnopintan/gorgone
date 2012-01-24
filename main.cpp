@@ -43,18 +43,18 @@ int main() {
 
 		RRBVector <long>  v;
 		RRBVector<RRBVector<long> > v2;
-		for (int i=0; i< 1057 ;i++) {
-	/*		if (i>0)
-				v=v2.get(i-1); */
+		for (int i=0; i<10000;i++) {
+			if (i>0)
+				v=v2.get(i-1);
 			v=v.add(i);
-		//	v2=v2.add(v);
-		}
-		for (int i=0; i< 1057;i++) {
-			std::cout << "value: " << v.get(i) << std::endl;
+			v2=v2.add(v);
 		}
 
-
-
+		for (int i=9998; i>=0; i--)
+				{
+				//	v2=v2.pop();
+				//	std::cout << v2.size() << ": " << v2.get(i).get(i) << std::endl;
+				}
 		finish = clock();
 		std::cout << "RRBVector with long     >> " << (finish-start) << std::endl;
 	}

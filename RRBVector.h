@@ -39,13 +39,26 @@ class RRBVector
 		LeafBranch(const T data[], unsigned int n,unsigned int size): _size(size)
 		{
 			_data=new T[size];
-			memcpy(_data,data,n*sizeof(T));
+			for (unsigned int i=0;i<n;i++)
+				_data[i]=data[i];
 		};
+
 		LeafBranch(const LeafBranch &other) :_size(other._size){
 			_data=new T[other._size];
-			memcpy(_data,other._data,_size*sizeof(T));
+			for (unsigned int i=0;i<other._size;i++)
+					_data[i]=other._data[i];
 
 		}
+
+		LeafBranch &operator=(const LeafBranch &other) {
+			delete[]_data;
+			_size=other._size;
+			_data=new T[other._size];
+			for (unsigned int i=0;i<other._size;i++)
+					_data[i]=other._data[i];
+			return *this;
+		}
+
 		virtual ~LeafBranch() {
 			delete []_data;
 		}
@@ -97,6 +110,7 @@ class RRBVector
 				_indexes[i]=indexes[i];
 			}
 		};
+
 		MidBranch(const MidBranch &other):
 			_level(other._level), _size(other._size)
 		{
@@ -108,8 +122,28 @@ class RRBVector
 				_indexes[i]=other._indexes[i];
 			}
 		}
+
+		virtual MidBranch & operator=(const MidBranch &other)
+		{
+			for (unsigned int i=0;i<_size;i++)
+							_data[i].reset();
+						delete []_data;
+						delete []_indexes;
+			_level=other._level;
+			_size=other._size;
+			_indexes= new unsigned int[_size];
+			_data= new boost::shared_ptr<Node>[_size];
+			for (unsigned int i=0;i<other._size;i++) {
+				_data[i]=other._data[i];
+				_indexes[i]=other._indexes[i];
+			}
+			return *this;
+		}
+
 		virtual ~MidBranch()
 		{
+			for (unsigned int i=0;i<_size;i++)
+				_data[i].reset();
 			delete []_data;
 			delete []_indexes;
 		}
@@ -146,7 +180,8 @@ class RRBVector
 					newChild=node_ptr(new MidBranch(1,_data[_size-1]->level()+5));
 					MidBranch *newBranch=static_cast<MidBranch *>(newChild.get());
 					newBranch->_data[0]=_data[_size-1];
-					newBranch->_indexes[0]=_indexes[_size-1];
+					unsigned int prevIndex=_size-1==0?0:_indexes[_size-2];
+					newBranch->_indexes[0]=_indexes[_size-1]-prevIndex;
 				}
 				else
 				{
