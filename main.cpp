@@ -41,6 +41,27 @@ int main() {
 		clock_t start, finish;
 		start = clock();
 
+		RRBVector <long>  v;
+		RRBVector<RRBVector<long> > v2;
+		for (int i=0; i< 1057 ;i++) {
+	/*		if (i>0)
+				v=v2.get(i-1); */
+			v=v.add(i);
+		//	v2=v2.add(v);
+		}
+		for (int i=0; i< 1057;i++) {
+			std::cout << "value: " << v.get(i) << std::endl;
+		}
+
+
+
+		finish = clock();
+		std::cout << "RRBVector with long     >> " << (finish-start) << std::endl;
+	}
+	{
+		clock_t start, finish;
+		start = clock();
+
 		PersistentVector <long>  v;
 		PersistentVector<PersistentVector<long> > v2;
 		for (int i=0; i< 10000;i++) {
