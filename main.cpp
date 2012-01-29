@@ -18,7 +18,7 @@ struct block {
 };
 
 struct test {
-	PersistentVector<long> v;
+	RRBVector<long> v;
 	int it;
 	void operator() () {
 		std::stringstream filename;
@@ -52,8 +52,8 @@ int main() {
 
 		for (int i=9998; i>=0; i--)
 				{
-				//	v2=v2.pop();
-				//	std::cout << v2.size() << ": " << v2.get(i).get(i) << std::endl;
+					v2=v2.pop();
+		//			std::cout << v2.size() << ": " << v2.get(i).get(i) << std::endl;
 				}
 		finish = clock();
 		std::cout << "RRBVector with long     >> " << (finish-start) << std::endl;
@@ -118,6 +118,27 @@ int main() {
 		}
 		finish = clock();
 		std::cout << "TransientVectorSptr with long  >> " << (finish-start) << std::endl;
+	}
+	{
+		clock_t start, finish;
+		start = clock();
+
+		RRBVector <block>  v;
+		RRBVector <RRBVector <block> > v2;
+		for (int i=0; i< 10000;i++) {
+			if (i>0)
+				v=v2.get(i-1);
+			v=v.add(block());
+			v2=v2.add(v);}
+
+
+		for (int i=9998; i>=0; i--)
+		{
+			v2=v2.pop();
+		//	std::cout << v2.size() << ": " << v2.get(i).get(i) << std::endl;
+		}
+		finish = clock();
+		std::cout << "RRBVector with block    >> " << (finish-start) << std::endl;
 	}
 	{
 		clock_t start, finish;

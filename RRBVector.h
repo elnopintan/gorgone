@@ -5,6 +5,19 @@
  *      Author: ignacio
  */
 
+/*
+ *    r
+ *    _data
+ * 15-1                                                               2-p
+ *    _data                                                           _data
+ * 10-1               2               3               4               1               2
+ *    _data           _data           _data           _data           _data           _data
+ *  5-1   2   3   4   1   2   3   4   1   2   3   4   1   2   3   4   1   2   3   4   1
+ *                                                                                   _d
+ *  0-123412341234123412341234123412341234123412341234123412341234123412341234123412341234
+ *
+ */
+
 #ifndef RRBVECTOR_H_
 #define RRBVECTOR_H_
 #include <iostream>
@@ -23,8 +36,10 @@ class RRBVector
 		virtual unsigned int size()=0;
 		virtual unsigned int level()=0;
 		virtual const node_ptr add(const T &value)=0;
+		virtual const node_ptr pop()=0;
 		virtual unsigned int lastIndex()=0;
 		virtual const T &get(unsigned int pos)=0;
+		virtual bool hasOnlyOne()=0;
 		virtual ~Node() {};
 
 	};
@@ -59,6 +74,8 @@ class RRBVector
 			return *this;
 		}
 
+
+
 		virtual ~LeafBranch() {
 			delete []_data;
 		}
@@ -66,6 +83,9 @@ class RRBVector
 		bool isFull(){
 			return _size==32;
 		};
+		bool hasOnlyOne() {
+			return _size==1;
+		}
 		unsigned int size() {return _size;}
 		unsigned int level() {return 0;}
 
@@ -76,6 +96,13 @@ class RRBVector
 				newNode->_data[_size]=value;
 				return result;
 		};
+
+		const node_ptr pop() {
+			if (_size==1)
+				return node_ptr();
+			return node_ptr(new LeafBranch(_data,_size-1,_size-1));
+		};
+
 		unsigned int lastIndex() {return _size;};
 		const T & get(unsigned int pos) {
 			return _data[pos];
@@ -193,6 +220,31 @@ class RRBVector
 				return result;
 			}
 		};
+
+		bool hasOnlyOne() {
+			return _size==1;
+		}
+
+		const node_ptr pop()
+		{
+			node_ptr newChild=_data[_size-1]->pop();
+			if (newChild)
+			{
+				node_ptr result(new MidBranch(_data,_indexes,_size-1,_size,_level));
+				MidBranch *newBranch=static_cast<MidBranch *>(result.get());
+				newBranch->_data[_size-1]=newChild;
+				newBranch->_indexes[_size-1]=_indexes[_size-1]-1;
+				return result;
+			}
+			if (_size==1)
+				return node_ptr();
+			if ((_size==2)&&(_data[_size-2]->level()>0))
+				{
+					return _data[0];
+				}
+			return node_ptr(new MidBranch(_data,_indexes,_size-1,_size-1,_level));
+		};
+
 		const T & get(unsigned int pos) {
 			unsigned int branch;
 			for (branch=(pos >> _level) & 0x1f; _indexes[branch] <pos;branch++);
@@ -228,7 +280,21 @@ class RRBVector
 		return newVector;
 	};
 
-	const T & get(unsigned int pos) {
+	RRBVector<T> pop() {
+		RRBVector<T> result;
+		if (!_root)
+			throw "";
+			result._root=_root->pop();
+		return result;
+	}
+	unsigned int size() {
+		if (!_root) return 0;
+		return _root->lastIndex();
+	}
+
+	const T & get(unsigned int pos) const {
+		if (!_root)
+			throw "";
 		if (pos<_root->lastIndex())
 			return _root->get(pos);
 		throw "";
